@@ -61,7 +61,7 @@ namespace ApiBase.Controllers
         }
 
         [HttpGet("{userId}/goal")]
-        public async Task<ActionResult<IEnumerable<User>>> GetGoalByUserId(int userId)
+        public async Task<ActionResult> GetGoalByUserId(int userId)
         {
             Respuesta<object> respuesta = new Respuesta<object>();
             try
@@ -78,7 +78,6 @@ namespace ApiBase.Controllers
                                        goal.Initialinvestment,
                                        goal.Monthlycontribution,
                                        goal.Targetamount,
-                                       user = u.Surname,
                                        Portafolio = port.Title,
                                        Entity = ent.Title,
                                        goal.Created
@@ -101,6 +100,7 @@ namespace ApiBase.Controllers
 
         public async Task<ActionResult> GetGoalIdByUserId(int id, int goalId)
         {
+            Respuesta<object> respuesta = new Respuesta<object>();
             try
             {
                 var goals = await _context.Goals.Where(q => q.Id == goalId).FirstOrDefaultAsync();
@@ -109,6 +109,7 @@ namespace ApiBase.Controllers
                     var goalPortfolio = (from goal in _context.Goals
                                          join port in _context.Portfolios on goal.Portfolioid equals port.Id
                                          join ent in _context.Financialentities on port.Financialentityid equals ent.Id
+                                         join gtf in _context.Goaltransactionfundings on goal.Id equals gtf.Goalid
                                          where goals.Userid == id
                                          select new
                                          {
@@ -117,9 +118,10 @@ namespace ApiBase.Controllers
                                              goal.Initialinvestment,
                                              goal.Monthlycontribution,
                                              goal.Targetamount,
-                                             Portafolio = port.Title,
+                                             Portfolio = port.Title,
                                              Entity = ent.Title,
-                                             goal.Created
+                                             goal.Created,
+                                             Percentage = gtf.Percentage
                                          }).ToList();
 
                     foreach (var gp in goalPortfolio)
@@ -134,10 +136,10 @@ namespace ApiBase.Controllers
 
             catch (Exception e)
             {
-                return NotFound();
-
+                respuesta.Ok = 0;
+                respuesta.Message = e.Message + " " + e.InnerException;
             }
-
+            return Ok(respuesta);
         }
 
 
