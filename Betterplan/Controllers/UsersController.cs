@@ -44,9 +44,7 @@ namespace ApiBase.Controllers
         // GET api/<UsersController>/5
         [HttpGet("{id}")]
         public async Task<ActionResult> GetUserById(int id)
-        {
-            
-
+        {     
             var user = await _context.Users.Where(q => q.Id == id).FirstOrDefaultAsync();
     
             if (user != null)
@@ -59,23 +57,59 @@ namespace ApiBase.Controllers
                     user.Created                   
                 });
             }
-            return NotFound();
-
+            return NotFound("Este ID no se encuentra en la Base de Datos");
         }
 
-        [HttpGet("{id}/goal")]
-
-        public async Task<ActionResult> GetGoalByUserId(int id)
+        [HttpGet("{userId}/goal")]
+        public async Task<ActionResult<IEnumerable<User>>> GetGoalByUserId(int userId)
         {
-           try
+            Respuesta<object> respuesta = new Respuesta<object>();
+            try
             {
-                var goals = await _context.Goals.Where(q => q.Id == id).FirstOrDefaultAsync();
+                var goals = await (from goal in _context.Goals
+                                   join u in _context.Users on goal.Userid equals u.Id
+                                   join port in _context.Portfolios on goal.Portfolioid equals port.Id
+                                   join ent in _context.Financialentities on port.Financialentityid equals ent.Id
+                                   where goal.Userid == userId
+                                   select new
+                                   {
+                                       goal.Title,
+                                       goal.Years,
+                                       goal.Initialinvestment,
+                                       goal.Monthlycontribution,
+                                       goal.Targetamount,
+                                       user = u.Surname,
+                                       Portafolio = port.Title,
+                                       Entity = ent.Title,
+                                       goal.Created
+                                   }).ToListAsync();
+
+                return Ok(goals);
+               
+            }
+
+            catch (Exception e)
+            {
+                respuesta.Ok = 0;
+                respuesta.Message = e.Message + " " + e.InnerException;
+            }
+            return Ok(respuesta);
+        }
+
+
+        [HttpGet("{id}/goal/{goalId}")]
+
+        public async Task<ActionResult> GetGoalIdByUserId(int id, int goalId)
+        {
+            try
+            {
+                var goals = await _context.Goals.Where(q => q.Id == goalId).FirstOrDefaultAsync();
                 if (goals != null)
                 {
                     var goalPortfolio = (from goal in _context.Goals
                                          join port in _context.Portfolios on goal.Portfolioid equals port.Id
                                          join ent in _context.Financialentities on port.Financialentityid equals ent.Id
-                                         where goals.Id == id
+                                         where goals.Userid == id
                                          select new
                                          {
                                              goal.Title,
@@ -87,12 +121,12 @@ namespace ApiBase.Controllers
                                              Entity = ent.Title,
                                              goal.Created
                                          }).ToList();
-               
+
                     foreach (var gp in goalPortfolio)
                     {
                         return Ok(gp);
                     }
-                   
+
                 }
 
                 return NotFound();
@@ -103,8 +137,9 @@ namespace ApiBase.Controllers
                 return NotFound();
 
             }
-           
+
         }
+
 
 
     }
